@@ -363,4 +363,9 @@ MigrationBackup/
 FodyWeavers.xsd
 # Local connection strings with credentials - never commit
 appsettings.Local.json
+appsettings.Deploy.json
 
+
+# Keep the clinic publish profile (no secrets) in git
+!Ordinacija/Properties/PublishProfiles/Clinic-ClickOnce.pubxml
+!Ordinacija/Properties/PublishProfiles/Clinic-Folder.pubxml

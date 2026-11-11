@@ -19,8 +19,16 @@
     <Content Include="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <!-- Real connection strings (gitignored). Overrides appsettings.json; included in publish when present. -->
-    <Content Include="appsettings.Local.json" Condition="Exists('appsettings.Local.json')">
+    <!-- Real connection strings (both files are gitignored); they override appsettings.json at runtime.
+         Normal build/run: the developer's appsettings.Local.json, if present.
+         Publish with UseDeploySettings=true (set in the Clinic-ClickOnce publish profile): the clinic's
+         appsettings.Deploy.json is packaged under the name appsettings.Local.json, and the dev file is not. -->
+    <Content Include="appsettings.Local.json" Condition="'$(UseDeploySettings)' != 'true' And Exists('appsettings.Local.json')">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <!-- The dev file must never end up in a package, even from an old publish profile. -->
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </Content>
+    <Content Include="appsettings.Deploy.json" Link="appsettings.Local.json" Condition="'$(UseDeploySettings)' == 'true'">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\Fonts\DejaVuSans.ttf">
@@ -49,5 +57,26 @@
   <ItemGroup>
     <Folder Include="Scripts\" />
   </ItemGroup>
+
+  <!-- Refuse to build/publish a clinic package with the wrong connection settings. -->
+  <Target Name="ValidateDeploySettings" BeforeTargets="BeforeBuild;PrepareForBuild" Condition="'$(UseDeploySettings)' == 'true'">
+    <PropertyGroup>
+      <_DeployFile>$(MSBuildProjectDirectory)\appsettings.Deploy.json</_DeployFile>
+      <_LocalFile>$(MSBuildProjectDirectory)\appsettings.Local.json</_LocalFile>
+      <_DeployText Condition="Exists('$(_DeployFile)')">$([System.IO.File]::ReadAllText('$(_DeployFile)'))</_DeployText>
+      <_DeployServer Condition="'$(_DeployText)' != ''">$([System.Text.RegularExpressions.Regex]::Match('$(_DeployText)', 'Data Source=[^;&quot;]*').Value)</_DeployServer>
+      <_LocalText Condition="Exists('$(_LocalFile)')">$([System.IO.File]::ReadAllText('$(_LocalFile)'))</_LocalText>
+      <_LocalServer Condition="'$(_LocalText)' != ''">$([System.Text.RegularExpressions.Regex]::Match('$(_LocalText)', 'Data Source=[^;&quot;]*').Value)</_LocalServer>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(_DeployFile)')"
+           Text="UseDeploySettings is on, but appsettings.Deploy.json is missing. Create it next to the .csproj with the clinic's ConnectionStrings:PantheonDB (see Deploy/DEPLOY.md)." />
+    <Error Condition="'$(_DeployServer)' == ''"
+           Text="appsettings.Deploy.json has no 'Data Source=' in its connection string." />
+    <Error Condition="$(_DeployText.Contains('placeholder.invalid'))"
+           Text="appsettings.Deploy.json still contains placeholder values." />
+    <Error Condition="'$(_LocalServer)' != '' And '$(_DeployServer)' == '$(_LocalServer)'"
+           Text="appsettings.Deploy.json points at the same server as your dev appsettings.Local.json ($(_DeployServer)). A clinic package must not use the dev server." />
+    <Message Importance="high" Text="Clinic package will use: $(_DeployServer)" />
+  </Target>
 
 </Project>
