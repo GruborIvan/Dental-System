@@ -96,5 +96,11 @@ namespace Ordinacija.Features.Patients
                 };
             }
         }
+
+        private void OsveziPrikazButton_Click(object sender, RoutedEventArgs e)
+        {
+            PatientViewModel = new PatientViewModel(_patientService);
+            DataContext = PatientViewModel;
+        }
     }
 }
