@@ -1,7 +1,7 @@
 ﻿using Dapper;
 using Microsoft.Extensions.Configuration;
 using Ordinacija.Features.ReportPrint.Exceptions;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 
 namespace Ordinacija.Features.ReportPrint.Repository.Implementation
 {

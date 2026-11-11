@@ -3,7 +3,7 @@ using Dapper;
 using Microsoft.Extensions.Configuration;
 using Ordinacija.Features.MedicalReports.Models;
 using System.Data.Common;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 
 namespace Ordinacija.Features.MedicalReports.Repository.Implementations
 {

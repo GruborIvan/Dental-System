@@ -32,7 +32,7 @@ namespace Ordinacija.Features.Patients
         {
             _patientService = patientService;
             LoadPatientsCommand = new RelayCommand(LoadPatients);
-            _ = LoadPatients();
+            ErrorHandler.ObserveErrors(LoadPatients());
         }
 
         public async Task LoadPatients()

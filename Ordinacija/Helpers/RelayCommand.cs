@@ -1,4 +1,5 @@
-﻿using System.Windows.Input;
+﻿using Microsoft.Data.SqlClient;
+using System.Windows.Input;
 
 namespace Ordinacija.Helpers
 {
@@ -14,7 +15,19 @@ namespace Ordinacija.Helpers
         }
 
         public bool CanExecute(object parameter) => _canExecute == null || _canExecute();
-        public async void Execute(object parameter) => await _execute();
+
+        public async void Execute(object parameter)
+        {
+            try
+            {
+                await _execute();
+            }
+            catch (SqlException ex)
+            {
+                ErrorHandler.ShowDatabaseError(ex);
+            }
+        }
+
         public event EventHandler CanExecuteChanged;
     }
 }

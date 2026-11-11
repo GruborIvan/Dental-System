@@ -1,6 +1,8 @@
 ﻿using Ordinacija.Features.Login.Models;
 using Ordinacija.Features.Login.Repository;
 using Ordinacija.Features.Patients;
+using Microsoft.Data.SqlClient;
+using Ordinacija.Helpers;
 using System.Windows;
 
 namespace Ordinacija.Features.Login
@@ -24,23 +26,30 @@ namespace Ordinacija.Features.Login
 
         private async void Login_Click(object sender, RoutedEventArgs e)
         {
-            string username = txtUsername.Text.Trim();
-            string password = txtPassword.Password;
-
-            bool isAuthenticated = await _loginRepository.AuthenticateUser(new LoginCredentials
+            try
             {
-                Username = username,
-                Password = password
-            });
+                string username = txtUsername.Text.Trim();
+                string password = txtPassword.Password;
 
-            if (isAuthenticated)
-            {
-                _patientsView.Show();
-                this.Close();
+                bool _isAuthenticated = await _loginRepository.AuthenticateUser(new LoginCredentials
+                {
+                    Username = username,
+                    Password = password
+                });
+
+                if (_isAuthenticated)
+                {
+                    _patientsView.Show();
+                    this.Close();
+                }
+                else
+                {
+                    MessageBox.Show("Pogrešno korisničko ime ili lozinka!", "Neuspešna prijava", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
             }
-            else
+            catch (SqlException ex)
             {
-                MessageBox.Show("Pogrešno korisničko ime ili lozinka!", "Neuspešna prijava", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ErrorHandler.ShowDatabaseError(ex);
             }
         }
     }

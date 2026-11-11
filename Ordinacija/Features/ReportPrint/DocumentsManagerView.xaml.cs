@@ -4,6 +4,8 @@ using Ordinacija.Features.Patients.Models;
 using Ordinacija.Features.ReportPrint.Repository.Implementation;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using Microsoft.Data.SqlClient;
+using Ordinacija.Helpers;
 using System.Reactive.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
@@ -60,10 +62,17 @@ namespace Ordinacija.Features.ReportPrint
 
         private async void InitializeAsync()
         {
-            var doctors = await _doctorService.GetAllDoctors();
+            try
+            {
+                var doctors = await _doctorService.GetAllDoctors();
 
-            foreach (var doctor in doctors)
-                Doctors.Add(doctor);
+                foreach (var doctor in doctors)
+                    Doctors.Add(doctor);
+            }
+            catch (SqlException ex)
+            {
+                ErrorHandler.ShowDatabaseError(ex);
+            }
         }
 
         private async void SaveButton_Click(object sender, RoutedEventArgs e)

@@ -1,6 +1,8 @@
 ﻿using Microsoft.IdentityModel.Tokens;
 using Ordinacija.Features.Patients.Models;
 using Ordinacija.Features.Patients.Service;
+using Microsoft.Data.SqlClient;
+using Ordinacija.Helpers;
 using System.Windows;
 using System.Windows.Input;
 
@@ -51,12 +53,29 @@ namespace Ordinacija.Features.Patients
             if (!ValidatePatientEntry())
                 return;
 
-            await (
-                _isEditMode
-                ? _patientService.UpdateExistingPatient(CurrentPatient)
-                : _patientService.CreateNewPatient(CurrentPatient));
+            try
+            {
+                await (
+                    _isEditMode
+                    ? _patientService.UpdateExistingPatient(CurrentPatient)
+                    : _patientService.CreateNewPatient(CurrentPatient));
+            }
+            catch (SqlException ex)
+            {
+                ErrorHandler.ShowDatabaseError(ex);
+                return;
+            }
 
-            await _patientsView.PatientViewModel.LoadPatients();
+            // The patient is saved at this point. A failed reload must not leave the form open,
+            // because confirming again would insert the same patient twice.
+            try
+            {
+                await _patientsView.PatientViewModel.LoadPatients();
+            }
+            catch (SqlException ex)
+            {
+                ErrorHandler.ShowSavedButNotRefreshed(ex);
+            }
 
             this.Close();
         }
@@ -79,10 +98,10 @@ namespace Ordinacija.Features.Patients
         {
             string errorMessage = string.Empty;
 
-            if (CurrentPatient.FirstName.IsNullOrEmpty())
+            if (string.IsNullOrEmpty(CurrentPatient.FirstName))
                 errorMessage += "Obavezno je uneti ime pacijenta.\n";
 
-            if  (CurrentPatient.LastName.IsNullOrEmpty())
+            if  (string.IsNullOrEmpty(CurrentPatient.LastName))
                 errorMessage += "Obavezno je uneti prezime pacijenta.\n";
 
             var (isValid, dateOfBirth, errors) = ValidateAndParseDateOfBirth();

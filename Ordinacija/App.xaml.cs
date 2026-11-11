@@ -23,11 +23,16 @@ using Ordinacija.Features.ReportPrint.Repository;
 using Ordinacija.Features.ReportPrint.Repository.Implementation;
 using Ordinacija.Features.Login.Repository;
 using Ordinacija.Features.Login.Repository.Implementation;
+using Ordinacija.Helpers;
+using Microsoft.Data.SqlClient;
+using System.Windows.Threading;
 
 namespace Ordinacija
 {
     public partial class App : Application
     {
+        private const string LocalSettingsFile = "appsettings.Local.json";
+
         private readonly IHost _host;
         public static IMapper Mapper { get; private set; }
         public static IConfiguration Configuration { get; private set; }
@@ -36,12 +41,31 @@ namespace Ordinacija
         {
             // Create and build the host with DI services.
             _host = Host.CreateDefaultBuilder()
+                .ConfigureAppConfiguration((context, config) =>
+                {
+                    // Real connection strings live in this untracked file and override appsettings.json.
+                    config.AddJsonFile(LocalSettingsFile, optional: true, reloadOnChange: true);
+                })
                 .ConfigureServices((context, services) =>
                 {
                     // Configure services (services, ViewModels, and Views)
                     ConfigureServices(services);
                 })
                 .Build();
+
+            DispatcherUnhandledException += OnDispatcherUnhandledException;
+        }
+
+        // Last line of defence: anything a screen did not handle itself is logged and shown
+        // instead of terminating the application.
+        private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+        {
+            if (e.Exception is SqlException sqlException)
+                ErrorHandler.ShowDatabaseError(sqlException);
+            else
+                ErrorHandler.ShowUnexpectedError(e.Exception);
+
+            e.Handled = true;
         }
 
         protected override void OnStartup(StartupEventArgs e)
@@ -49,7 +73,8 @@ namespace Ordinacija
             // Configure appsettings.json
             var builder = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .AddJsonFile(LocalSettingsFile, optional: true, reloadOnChange: true);
 
             Configuration = builder.Build();
 

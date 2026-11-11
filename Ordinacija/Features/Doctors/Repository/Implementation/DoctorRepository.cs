@@ -2,7 +2,7 @@
 using Dapper;
 using Microsoft.Extensions.Configuration;
 using Ordinacija.Features.Doctors.Models;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 
 namespace Ordinacija.Features.Doctors.Repository.Implementation
 {

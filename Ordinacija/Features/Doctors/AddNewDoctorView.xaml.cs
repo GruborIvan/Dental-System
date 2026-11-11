@@ -1,6 +1,8 @@
 ﻿using Ordinacija.Features.Doctors.Models;
 using Ordinacija.Features.Doctors.Service;
 using Ordinacija.Features.Patients.Models;
+using Microsoft.Data.SqlClient;
+using Ordinacija.Helpers;
 using System.Runtime.CompilerServices;
 using System.Windows;
 
@@ -51,12 +53,29 @@ namespace Ordinacija.Features.Doctors
             if (!ValidateDoctorEntry())
                 return;
 
-            await (
-                _isEditMode
-                ? _doctorService.UpdateExistingDoctor(CurrentDoctor)
-                : _doctorService.CreateNewDoctor(CurrentDoctor));
+            try
+            {
+                await (
+                    _isEditMode
+                    ? _doctorService.UpdateExistingDoctor(CurrentDoctor)
+                    : _doctorService.CreateNewDoctor(CurrentDoctor));
+            }
+            catch (SqlException ex)
+            {
+                ErrorHandler.ShowDatabaseError(ex);
+                return;
+            }
 
-            await DoctorsView.DoctorViewModel.LoadDoctors();
+            // The doctor is saved at this point. A failed reload must not leave the form open,
+            // because confirming again would insert the same doctor twice.
+            try
+            {
+                await DoctorsView.DoctorViewModel.LoadDoctors();
+            }
+            catch (SqlException ex)
+            {
+                ErrorHandler.ShowSavedButNotRefreshed(ex);
+            }
 
             this.Close();
         }

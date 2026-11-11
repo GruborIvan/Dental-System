@@ -1,12 +1,11 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Ordinacija.Features.Login.Models;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 
 namespace Ordinacija.Features.Login.Repository.Implementation
 {
     public class LoginRepository : ILoginRepository
     {
-        private readonly string _connectionString;
         private readonly string _server;
         private readonly string _database;
 
@@ -30,10 +29,22 @@ namespace Ordinacija.Features.Login.Repository.Implementation
                 await connection.OpenAsync(); 
                 return true; 
             }
-            catch (SqlException)
+            catch (SqlException ex) when (IsLoginRejected(ex))
             {
-                return false; 
+                return false;
             }
         }
+
+        // Only errors where the server answered and refused the login count as wrong credentials.
+        // Anything else (server unreachable, timeout) is thrown so the caller can report it as such.
+        private static bool IsLoginRejected(SqlException ex) => ex.Number is
+            18456    // login failed (wrong username or password)
+            or 18452 // login from an untrusted domain
+            or 18470 // account disabled
+            or 18486 // account locked out
+            or 18487 // password expired
+            or 18488 // password must be changed
+            or 4060  // cannot open the database requested by the login
+            or 4064; // cannot open the user's default database
     }
 }

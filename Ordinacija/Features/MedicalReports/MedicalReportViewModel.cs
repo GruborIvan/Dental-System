@@ -53,7 +53,7 @@ namespace Ordinacija.Features.MedicalReports
             PreviousReportCommand = new AsyncRelayCommand(PreviousReport, CanMovePrevious);
             CreateNewMedicalReportCommand = new AsyncRelayCommand(CreateNewMedicalReport);
 
-            _ = LoadMedicalReports();
+            Helpers.ErrorHandler.ObserveErrors(LoadMedicalReports());
         }
 
         public async Task LoadMedicalReports()

@@ -6,6 +6,8 @@ using Ordinacija.Features.Patients.Models;
 using Ordinacija.Features.ReportPrint.Repository;
 using Ordinacija.Features.ReportPrint.Repository.Implementation;
 using System.Collections.ObjectModel;
+using Microsoft.Data.SqlClient;
+using Ordinacija.Helpers;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -63,7 +65,17 @@ namespace Ordinacija.Features.MedicalReports
 
             DataContext = this;
 
-            Loaded += async (s, e) => await InitializeAsync(medicalReport, isUltrasound);
+            Loaded += async (s, e) =>
+            {
+                try
+                {
+                    await InitializeAsync(medicalReport, isUltrasound);
+                }
+                catch (SqlException ex)
+                {
+                    ErrorHandler.ShowDatabaseError(ex);
+                }
+            };
         }
 
         private async Task InitializeAsync(MedicalReport? medicalReport, bool isUltraSound)
@@ -81,8 +93,15 @@ namespace Ordinacija.Features.MedicalReports
         {
             if (isUltraSound)
             {
-                CurrentMedicalReport = new MedicalReport();
-                Anamneza.Text = await _schemaRepository.GetTemplateSchemaByKey("UZ ABDOMENA I BUBREGA");
+                try
+                {
+                    CurrentMedicalReport = new MedicalReport();
+                    Anamneza.Text = await _schemaRepository.GetTemplateSchemaByKey("UZ ABDOMENA I BUBREGA");
+                }
+                catch (SqlException ex)
+                {
+                    ErrorHandler.ShowDatabaseError(ex);
+                }
             }
         }
 
@@ -106,30 +125,52 @@ namespace Ordinacija.Features.MedicalReports
             if (_currentlySelectedDoctorId == string.Empty)
                 return;
 
-            CurrentMedicalReport.DoctorId = _currentlySelectedDoctorId;
-            CurrentMedicalReport.DateOfReport = DatumNalazaDatePicker.SelectedDate ?? DateTime.Now;
-
-            if (_isEditMode)
+            try
             {
-                await _medicalReportService.UpdateMedicalReport(CurrentMedicalReport);
+                CurrentMedicalReport.DoctorId = _currentlySelectedDoctorId;
+                CurrentMedicalReport.DateOfReport = DatumNalazaDatePicker.SelectedDate ?? DateTime.Now;
+
+                if (_isEditMode)
+                {
+                    await _medicalReportService.UpdateMedicalReport(CurrentMedicalReport);
+                }
+                else
+                {
+                    await _medicalReportService.InsertMedicalReport(CurrentMedicalReport);
+                }
             }
-            else
+            catch (SqlException ex)
             {
-                await _medicalReportService.InsertMedicalReport(CurrentMedicalReport);
-            }
-
-            await _medicalReportsView.MedicalReportViewModel.LoadMedicalReports();
-
-            var shouldPrint = Dialog_DoYouWantToPrint();
-
-            if (shouldPrint)
-            {
-                var printPdfRepositor = new PdfPrintService();
-                CurrentMedicalReport.DoctorName = DoctorComboBox.Text;
-                printPdfRepositor.PrintMedicalReport(CurrentMedicalReport, _patient);
+                ErrorHandler.ShowDatabaseError(ex);
+                return;
             }
 
-            this.Close();
+            // The report is saved at this point. Whatever happens below (reload or printing fails),
+            // the form must close, because confirming again would insert the same report twice.
+            try
+            {
+                try
+                {
+                    await _medicalReportsView.MedicalReportViewModel.LoadMedicalReports();
+                }
+                catch (SqlException ex)
+                {
+                    ErrorHandler.ShowSavedButNotRefreshed(ex);
+                }
+
+                var shouldPrint = Dialog_DoYouWantToPrint();
+
+                if (shouldPrint)
+                {
+                    var printPdfRepositor = new PdfPrintService();
+                    CurrentMedicalReport.DoctorName = DoctorComboBox.Text;
+                    printPdfRepositor.PrintMedicalReport(CurrentMedicalReport, _patient);
+                }
+            }
+            finally
+            {
+                this.Close();
+            }
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)

@@ -19,7 +19,7 @@ namespace Ordinacija.Features.Doctors
         {
             _doctorService = doctorService;
             LoadDoctorsCommand = new RelayCommand(LoadDoctors);
-            _ = LoadDoctors();
+            ErrorHandler.ObserveErrors(LoadDoctors());
         }
 
         public async Task LoadDoctors()
